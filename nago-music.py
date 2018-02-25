@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import requests
 import eyed3
 import youtube_dl
@@ -37,17 +38,23 @@ def analize_url_from_lyryc(url):
 	soup = BeautifulSoup(page.content, 'html.parser')
 	try:
 		album = Album()
-		album.title 	= soup.findAll('div', attrs={"class":"metadata_unit"})[1].select("span")[1].get_text()
-		album.artist 	= soup.find('a', attrs={"class":"header_with_cover_art-primary_info-primary_artist"}).get_text()
+		for span_html in soup.findAll('div', attrs={"class":"metadata_unit"}):
+			span = span_html.select('span')
+			if span[0].get_text().find('Album') != -1:
+				album.title 		= span[1].get_text()
+			elif span[0].get_text().find('Featuring') != -1:
+				album.title 		= 'Feat %s' %(span[1].get_text())
+
+		album.artist 			= soup.find('a', attrs={"class":"header_with_cover_art-primary_info-primary_artist"}).get_text()
 		song = Song()
 		song.title 				= soup.find('h1', attrs={"class":"header_with_cover_art-primary_info-title"}).get_text()
 		song.url_cover_http 	= soup.find('img', attrs={"class":"cover_art-image"})["src"]
-		song.full_path_cover 	= os.path.join(PATH_WORKSPACE, "covers_imgs", (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").decode("utf-8").lower()) #CHANGE DIR
+		song.full_path_cover 	= os.path.join(PATH_WORKSPACE, "covers_imgs", (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").lower()) #CHANGE DIR
 		song.description_cover 	= song.title
 		album.add(song)
 		return album;
 	except Exception as e:
-		print 'Not analyze url({0})'.format(url) 
+		print 'Not analyze url({0}) exception({1})'.format(url, e)
 
 	
 def download_file(url_downloaded, full_path_target):
@@ -68,11 +75,24 @@ def set_metadata_file(full_path_file, album):
 	audio_file.tag.album = u"" + album.title
 	audio_file.tag.save()
 
+
 def rename_file(full_path_old, full_path_new):
 	os.rename(full_path_old, full_path_new)
 
+
 def delete_file(full_path):
 	os.remove(full_path)
+
+
+def regex_content_link(link, keywords):
+	link = link.lower()
+	re.sub('[^A-Za-z0-9 ]+', '', keywords)
+	keywords = keywords.lower()
+	for word in keywords.split():
+		if link.find(word) == -1:
+			return False
+	return True
+
 
 def search_link(parameter_search, page):
 	links = []
@@ -82,14 +102,15 @@ def search_link(parameter_search, page):
 	return links;
 
 
-def search_link_by_domain(string_search, priority_domain):
+def search_link_by_domain(string_search, priority_domain, sure_results):
 	links_search = []
 	page = 1
 	search_results = google.search(string_search, page)
 	for item in search_results:
 		if priority_domain is not None:
 			if item.link.find(priority_domain) != -1:
-				links_search.append(item.link)
+				if regex_content_link(item.link, sure_results) is True:
+					links_search.append(item.link)
 		else:
 			links_search.append(item.link)
 	return links_search;
@@ -138,7 +159,7 @@ if __name__ == '__main__':
 		url_youtube = args[1]
 		metadata = metadata_from_youtube(url_youtube)
 		string_search_lyrycs = "genius + lyrycs + " + metadata['title']
-		links_lyrycs = search_link_by_domain(string_search_lyrycs, 'genius.com')
+		links_lyrycs = search_link_by_domain(string_search_lyrycs, 'genius.com', metadata['title'])
 		if len(links_lyrycs) > 0:		
 			for lyryc in links_lyrycs:
 				album = analize_url_from_lyryc(lyryc)
