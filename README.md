@@ -8,4 +8,16 @@ python nago-music.py %URL_YOUTUBE%
 ```
 
 ## Dependences
-This program put and analyze with scraping over 'Genius.com'
+This program make scraping over 'Genius.com' and required modules with:
+
+```
+import os
+import sys
+import requests
+import eyed3
+import youtube_dl
+from google import google
+from bs4 import BeautifulSoup
+from pydub import AudioSegment
+```
+
