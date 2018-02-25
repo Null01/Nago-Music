@@ -2,7 +2,7 @@
 Download Music from YouTube with Full Metadata  :musical_note:
 
 ## How work ?
-```
+```python
 python nago-music.py %URL_YOUTUBE%
 -- %URL_YOUTUBE% = Is your url from YouTube
 ```
@@ -10,7 +10,7 @@ python nago-music.py %URL_YOUTUBE%
 ## Dependences
 This program make scraping over 'Genius.com' and required modules with:
 
-```
+```python
 import os
 import sys
 import requests
