@@ -4,7 +4,7 @@ Download Music from YouTube with Full Metadata  :musical_note:
 ## How work ?
 ```python
 python nago-music.py %URL_YOUTUBE%
--- %URL_YOUTUBE% = Is your url from YouTube
+# %URL_YOUTUBE% = Is your url from YouTube
 ```
 
 ## Dependences
@@ -19,5 +19,7 @@ import youtube_dl
 from google import google
 from bs4 import BeautifulSoup
 from pydub import AudioSegment
+
+#Dependencies --> brew install ffmpeg --with-libvorbis --with-sdl2 --with-theora
 ```
 
