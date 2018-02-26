@@ -31,7 +31,9 @@ class Song:
 		return 'title:' + self.title
 
 
-PATH_WORKSPACE = os.path.join("/","Users","andresfelipegarciaduran","Music","iPod") #CHANGE ROOT PATH
+PATH_WORKSPACE 	= os.path.dirname(os.path.abspath('nago-music.py'))
+DIR_COVERS		= 'ng-covers'
+DIR_MUSIC		= 'ng-music'
 
 def analize_url_from_lyryc(url):
 	page = requests.get(url)
@@ -49,7 +51,7 @@ def analize_url_from_lyryc(url):
 		song = Song()
 		song.title 				= soup.find('h1', attrs={"class":"header_with_cover_art-primary_info-title"}).get_text()
 		song.url_cover_http 	= soup.find('img', attrs={"class":"cover_art-image"})["src"]
-		song.full_path_cover 	= os.path.join(PATH_WORKSPACE, "covers_imgs", (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").lower()) #CHANGE DIR
+		song.full_path_cover 	= os.path.join(PATH_WORKSPACE, DIR_COVERS, (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").lower())
 		song.description_cover 	= song.title
 		album.add(song)
 		return album;
@@ -82,6 +84,13 @@ def rename_file(full_path_old, full_path_new):
 
 def delete_file(full_path):
 	os.remove(full_path)
+
+def create_dir_or_file(path, name_dir_or_file):
+	if not os.path.exists(os.path.join(path, name_dir_or_file)):
+	    try:
+	        os.makedirs(os.path.join(path, name_dir_or_file))
+	    except Exception as e:
+			print 'ERROR - Exception({0})'.format(e)
 
 
 def regex_content_link(link, keywords):
@@ -122,7 +131,7 @@ def convert_to_mp3(file_name_without_format, old_format):
 
 
 def download_from_youtube_as_mp3(url, name_file):
-	full_path_file = os.path.join(PATH_WORKSPACE,name_file)
+	full_path_file = os.path.join(PATH_WORKSPACE, DIR_MUSIC, name_file)
 	options = {
 		'format': 'audio/m4a',
 		'extractaudio' : True,  # only keep the audio
@@ -152,11 +161,15 @@ def metadata_from_youtube(url):
 		'description'	: '%s' %(meta['description'])
     }
 
+def init():
+	create_dir_or_file(PATH_WORKSPACE, DIR_MUSIC)
+	create_dir_or_file(PATH_WORKSPACE, DIR_COVERS)
 
 if __name__ == '__main__':
 	args = sys.argv
 	if(len(args) > 1):
 		url_youtube = args[1]
+		init()
 		metadata = metadata_from_youtube(url_youtube)
 		string_search_lyrycs = "genius + lyrycs + " + metadata['title']
 		links_lyrycs = search_link_by_domain(string_search_lyrycs, 'genius.com', metadata['title'])
@@ -164,14 +177,14 @@ if __name__ == '__main__':
 			for lyryc in links_lyrycs:
 				album = analize_url_from_lyryc(lyryc)
 				if album is not None:				
-					full_path_audio = os.path.join(PATH_WORKSPACE, album.songs[0].title.title())
+					full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, album.songs[0].title.title())
 					download_from_youtube_as_mp3(url_youtube, full_path_audio)
 
-					full_path_audio = os.path.join(PATH_WORKSPACE, album.songs[0].title.title() + '.m4a')
+					full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, album.songs[0].title.title() + '.m4a')
 					convert_to_mp3(full_path_audio, '.m4a')
 					delete_file(full_path_audio)
 					
-					full_path_audio = os.path.join(PATH_WORKSPACE, album.songs[0].title.title() + '.mp3')
+					full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, album.songs[0].title.title() + '.mp3')
 					set_metadata_file(full_path_audio, album)
 					print '-------> downloaded: ' + full_path_audio
 		else:
