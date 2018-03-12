@@ -226,9 +226,6 @@ if __name__ == '__main__':
 		else:
 			links_lyrycs_search = [url_genius]
 
-		print url_youtube
-		print url_genius
-
 		if len(links_lyrycs_search) <= 0:
 			raise Exception('Parameter -song [{0}] or -youtube [{1}] not have complete data in genius.com'.format(keyword_search, url_youtube))			
 		
@@ -236,6 +233,10 @@ if __name__ == '__main__':
 			for link_lyryc in links_lyrycs_search:
 				album = scraping_to_geniuscom(link_lyryc)
 				song = album.songs[0]
+
+				if url_youtube is not None and url_genius is not None:
+					song.url_youtube_http = url_youtube
+				
 				if song.url_youtube_http is None:
 					raise Exception('genius.com not have url_youtube from this song [{0}]'.format(keyword_search))
 
@@ -253,5 +254,4 @@ if __name__ == '__main__':
 		
 	except Exception as e:
 		print '> main_error({0})'.format(e)
-
 
