@@ -9,68 +9,105 @@ from google import google
 from bs4 import BeautifulSoup
 from pydub import AudioSegment
 
-PATH_WORKSPACE 	= os.path.dirname(os.path.abspath('nago-music.py'))
+PATH_WORKSPACE 	= os.path.dirname(os.path.realpath('nago-music.py'))
 DIR_COVERS		= 'ng-covers'
-DIR_MUSIC		= 'ng-music'
-events = ['-album','-song','-youtube','-genius']
+DIR_MUSIC		= 'ng-track'
+EVENTS = ['-help','-youtube','-genius']
 
 class Album:
 	def __init__(self):
-		self.title = None
-		self.artist = None
+		self.title 			= None
+		self.artist 		= None
+		self.url_cover_http = None
 		self.songs = []
 
 	def add(self, song):
 		self.songs.append(song)
 
 	def __str__(self):
-		return 'title:\t{0} \nartist:\t{1}'.format(self.title, self.artist)
+		return 'title:\t\t{0} \nartist:\t\t{1} \nurl_cover_http:\t\t{2}'.format(self.title, self.artist, self.url_cover_http)
 
 class Song:
 	def __init__(self):
-		self.title = None
-		self.url_cover_http = None
-		self.url_youtube_http = None
-		self.full_path_cover = None
-		self.description_cover = None
+		self.title 				= None
+		self.url_cover_http 	= None
+		self.url_youtube_http 	= None
+		self.full_path_cover 	= None
+		self.description_cover 	= None
 
 	def __str__(self):
-		return 'title:\t{0}'.format(self.title)
+		return 'title:\t\t\t{0} \nurl_cover_http:\t\t{1} \nurl_youtube_http:\t{2} \nfull_path_cover:\t{3}'.format(self.title, self.url_cover_http, self.url_youtube_http, self.full_path_cover)
+
+#****************** BEGIN - FUNCTIONS FILE ******************
+
+def create_dir_or_file(path, name_dir_or_file):
+	if not os.path.exists(os.path.join(path, name_dir_or_file)):
+	    try:
+	        os.makedirs(os.path.join(path, name_dir_or_file))
+	    except Exception as e:
+			print '> error({0})'.format(e)
+
+def rename_file(full_path_old, full_path_new):
+	os.rename(full_path_old, full_path_new)
+
+
+def delete_file(full_path):
+	os.remove(full_path)
+
+def download_urlhttp_to_file(url_image, full_path_downloaded):
+	if os.path.exists(full_path_downloaded) is False:
+		r = requests.get(url_image)
+		with open(full_path_downloaded, 'wb') as f:
+			f.write(r.content)
+
+def nvl(a, b):
+  if a is None:
+    return b
+  return a
+
+#****************** END - FUNCTIONS FILE ******************
 
 #****************** BEGIN - FUNCTIONS SCRAPING ******************
 
-def scraping_to_geniuscom(url_http):
+def scraping_to_genius_com(url_http):
 	page = requests.get(url_http)
 	soup = BeautifulSoup(page.content, 'html.parser')
-	try:		
+	try:
 		tag_data	= soup.find('meta', itemprop='page_data')['content']
 		data 		= json.loads(tag_data)
+		#print json.dumps(data, sort_keys=True, indent=4)
 		
 		album = Album()
 		song = Song()
 
-		if data['song']['album'] is None: # Is posible single
-			album.title = 'Single'
-			for span_html in soup.findAll('div', attrs={"class":"metadata_unit"}):
-				span = span_html.select('span')
-				if span[0].get_text().find('Album') != -1:
-					album.title 		= span[1].get_text()
-				elif span[0].get_text().find('Featuring') != -1:
-					album.title 		= 'Feat %s' %(span[1].get_text())
-
-			album.artist 			= soup.find('a', attrs={"class":"header_with_cover_art-primary_info-primary_artist"}).get_text()
-			song.title 				= soup.find('h1', attrs={"class":"header_with_cover_art-primary_info-title"}).get_text()
-			song.url_cover_http 	= soup.find('img', attrs={"class":"cover_art-image"})["src"]
-		else:
-			album.title 			= data['song']['album']['name']
-			album.artist 			= data['song']['album']['artist']['name']
-			song.title 				= data['song']['title']
-			song.url_cover_http		= data['song']['album']['cover_art_thumbnail_url']
+		if data['song'] is not None:
+			
+			song.title 				= (data['song']['title']).encode('utf-8').strip()
 			song.url_youtube_http	= data['song']['youtube_url']
+			if song.url_youtube_http is None:
+				raise Exception('genius.com not have url_youtube from this song [{0}]'.format(keyword_search))
 
-		song.full_path_cover	= os.path.join(PATH_WORKSPACE, DIR_COVERS, (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").lower())
-		song.description_cover 	= remove_all_tags_html(remove_tag_html(data['lyrics_data']['body']['html'], 'center'))
-		#print json.dumps(data, sort_keys=True, indent=4)
+			if data['song']['album'] is not None:
+				album.title 			= (data['song']['album']['name']).encode('utf-8').strip()
+				album.artist 			= (data['song']['album']['artist']['name']).encode('utf-8').strip()
+				album.url_cover_http	= data['song']['album']['cover_art_thumbnail_url']
+				song.url_cover_http		= data['song']['album']['cover_art_thumbnail_url']
+			else:
+				album.title = 'Single'
+				for span_html in soup.findAll('div', attrs={"class":"metadata_unit"}):
+					span = span_html.select('span')
+					if span[0].get_text().find('Album') != -1:
+						album.title 		= (span[1].get_text().replace("/", "")).encode('utf-8').strip()
+					elif span[0].get_text().find('Featuring') != -1:
+						album.title 		= ('Feat %s' %(span[1].get_text()).replace("/", "")).encode('utf-8').strip()
+
+				album.artist 			= (soup.find('a', attrs={"class":"header_with_cover_art-primary_info-primary_artist"}).get_text().replace("/", "")).encode('utf-8').strip()			
+				song.url_cover_http 	= data['song']['custom_song_art_image_url']
+			
+			
+			song.full_path_cover	= os.path.join(PATH_WORKSPACE, DIR_COVERS, (album.artist.replace(" ","-") + "_" + song.title.replace(" ","-") + ".jpg").lower())
+			song.description_cover 	= (remove_all_tags_html(remove_tag_html(data['lyrics_data']['body']['html'], 'center'))).encode('utf-8').strip()
+
 		album.add(song)
 		return album;
 	except Exception as e:
@@ -113,8 +150,7 @@ def download_urlyoutube_as_mp3(url, name_file):
 		'format': 'audio/m4a',
 		'extractaudio' : True,  # only keep the audio
 		'audioformat' : "mp3",  # convert to mp3 
-		'outtmpl': full_path_file + '.%(ext)s',    # name the file of the video
-		#'outtmpl': name_file + '.%(ext)s',
+		'outtmpl': (full_path_file).decode('utf-8').strip() + '.%(ext)s',    # name the file of the video
 		'noplaylist' : True,    # only download single song, not playlist
 	}
 	with youtube_dl.YoutubeDL(options) as ydl:
@@ -140,30 +176,6 @@ def search_link_by_domain(string_search, priority_domain):
 
 #****************** END - FUNCTIONS GOOGLE SEARCH ******************
 
-#****************** BEGIN - FUNCTIONS FILE ******************
-
-def create_dir_or_file(path, name_dir_or_file):
-	if not os.path.exists(os.path.join(path, name_dir_or_file)):
-	    try:
-	        os.makedirs(os.path.join(path, name_dir_or_file))
-	    except Exception as e:
-			print '> error({0})'.format(e)
-
-def rename_file(full_path_old, full_path_new):
-	os.rename(full_path_old, full_path_new)
-
-
-def delete_file(full_path):
-	os.remove(full_path)
-
-def download_urlhttp_to_file(url_image, full_path_downloaded):
-	if os.path.exists(full_path_downloaded) is False:
-		r = requests.get(url_image)
-		with open(full_path_downloaded, 'wb') as f:
-			f.write(r.content)
-
-#****************** END - FUNCTIONS FILE ******************
-
 #****************** BEGIN - FUNCTIONS AUDIO FILE ******************
 
 def convert_audio_to_mp3(file_name_without_format, old_format):
@@ -172,86 +184,78 @@ def convert_audio_to_mp3(file_name_without_format, old_format):
 
 def set_metadata_file(full_path_file, album):
 	song = album.songs[0]
-	audio_file = eyed3.load(full_path_file)
+	audio_file = eyed3.load((full_path_file).decode('utf-8').strip())
 	image_data = open(song.full_path_cover, "rb").read()
-	audio_file.tag.images.set(3, image_data , "image/jpg", u"" + song.description_cover)
-	audio_file.tag.title = u"" + song.title
-	audio_file.tag.artist = u"" + album.artist
-	audio_file.tag.album = u"" + album.title
+	audio_file.tag.images.set(3, image_data , "image/jpg", u"" + (song.description_cover).decode('utf-8').strip())
+	audio_file.tag.title 	= u"" + (song.title).decode('utf-8').strip()
+	audio_file.tag.artist 	= u"" + (album.artist).decode('utf-8').strip()
+	audio_file.tag.album 	= u"" + (album.title).decode('utf-8').strip()
 	audio_file.tag.save()
 
 #****************** END - FUNCTIONS AUDIO FILE ******************
 
 def init_map(args):
 	if(len(args) <= 1):
-		raise Exception('Not have parameter {0} > python nago-music.py %params%'.format(events))
+		raise Exception('Only run the nexts events {0}'.format(EVENTS))
 
-	only_url_youtube 	= None
-	keyword_search 		= None
+	only_url_youtube 		= None
+	only_url_genius_com		= None
+
+	keyword_help		= False
 	all_album			= False
-	url_geniuscom		= None
-	for it in range(2, len(args), 2):
-		if args[it - 1] == events[0]:
-			all_album = True
-		elif args[it - 1] == events[1]:
-			keyword_search = args[it]
-		elif args[it - 1] == events[2]:
-			only_url_youtube = args[it]
-		elif args[it - 1] == events[3]:
-			url_geniuscom = args[it]
+
+	for it in range(1, len(args), 2):
+		if args[it] == EVENTS[1]:
+			if (it + 1) >= len(args):
+				raise Exception('Not have value to event [-youtube] > python nago-music.py -youtube http://youtube.com/to.song')
+			only_url_youtube = args[it + 1]
+		elif args[it] == EVENTS[2]:
+			if (it + 1) >= len(args):
+				raise Exception('Not have value to event [-genius] > python nago-music.py -genius https://genius.com/Onerepublic-secrets-lyrics')
+			only_url_genius_com = args[it + 1]
+		elif args[it] == EVENTS[0]:
+			keyword_help = True
 		
 	create_dir_or_file(PATH_WORKSPACE, DIR_MUSIC)
 	create_dir_or_file(PATH_WORKSPACE, DIR_COVERS)
 	return {
-		'url_youtube': 		only_url_youtube,
-		'keyword_song': 	keyword_search,
+		'keyword_help':		keyword_help,
 		'download_album': 	all_album,
-		'url_genius':		url_geniuscom
+
+		'url_youtube': 		only_url_youtube,
+		'url_genius':		only_url_genius_com
 	};
 
 if __name__ == '__main__':
-	try:
+	try: 
 		init = init_map(sys.argv)
-		keyword_search = init['keyword_song']
-		url_youtube = init['url_youtube']
-		url_genius = init['url_genius']
+		url_youtube 	= init['url_youtube']
+		url_genius 		= init['url_genius']
+		keyword_help 	= init['keyword_help']
 
-		if keyword_search is None and url_youtube is None:
-			raise Exception('Not have parameter [-song, -youtube] > python nago-music.py %params%')
-		if url_youtube is not None and url_genius is None:
-			raise Exception('Not have parameter [-genius] > python nago-music.py %params%')
-
-		if keyword_search is not None:
-			links_lyrycs_search = search_link_by_domain(keyword_search, 'genius.com')
-		else:
-			links_lyrycs_search = [url_genius]
-
-		if len(links_lyrycs_search) <= 0:
-			raise Exception('Parameter -song [{0}] or -youtube [{1}] not have complete data in genius.com'.format(keyword_search, url_youtube))			
-		
-		if len(links_lyrycs_search) > 0:
-			for link_lyryc in links_lyrycs_search:
-				album = scraping_to_geniuscom(link_lyryc)
-				song = album.songs[0]
-
-				if url_youtube is not None and url_genius is not None:
-					song.url_youtube_http = url_youtube
-				
-				if song.url_youtube_http is None:
-					raise Exception('genius.com not have url_youtube from this song [{0}]'.format(keyword_search))
-
-				full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title())
-				download_urlhttp_to_file(song.url_cover_http, song.full_path_cover)
-				download_urlyoutube_as_mp3(song.url_youtube_http, full_path_audio)
-
-				full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title() + '.m4a')
-				convert_audio_to_mp3(full_path_audio, '.m4a')
-				delete_file(full_path_audio)
+		if keyword_help:
+			print '> python nago-music.py -genius https://genius.com/Cali-y-el-dandee-por-fin-te-encontre-lyrics'
+		elif url_youtube is not None:
+			print 'Not available'
+		elif url_genius is not None:
+			album = scraping_to_genius_com(url_genius)
+			song = album.songs[0]
+			print album
+			print song
 			
-				full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title() + '.mp3')
-				set_metadata_file(full_path_audio, album)
-				print '-------> download_completed: ' + full_path_audio
-		
+			download_urlhttp_to_file(song.url_cover_http, song.full_path_cover)
+			
+			full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title())
+			download_urlyoutube_as_mp3(song.url_youtube_http, full_path_audio)
+			
+			full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title() + '.m4a')
+			convert_audio_to_mp3(full_path_audio, '.m4a')
+			delete_file(full_path_audio)
+			
+			full_path_audio = os.path.join(PATH_WORKSPACE, DIR_MUSIC, song.title.title() + '.mp3')
+			set_metadata_file(full_path_audio, album)
+
 	except Exception as e:
-		print '> main_error({0})'.format(e)
+		print '> error:({0})'.format(e)
+
 
