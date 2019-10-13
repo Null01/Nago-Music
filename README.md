@@ -2,9 +2,9 @@
 Download Music from YouTube with Full Metadata  :musical_note:
 
 ## How work ?
-```python
-python nago-music.py %URL_YOUTUBE%
-# %URL_YOUTUBE% = Is your url from YouTube
+```python - genius
+python nago-music.py -genius %URL_GENIUS%
+# %URL_YOUTUBE% = Is your url form Genius
 ```
 
 ## Dependences
